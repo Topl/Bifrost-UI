@@ -3,6 +3,7 @@ import 'package:admin/rpc_ops.dart';
 import 'package:admin/state.dart';
 import 'package:admin/ui/blockchain_state_viewer.dart';
 import 'package:flutter/material.dart';
+import 'package:grpc/grpc.dart';
 import 'package:topl_common/genus/services/node_grpc.dart';
 
 class BifrostAdminHomePage extends StatefulWidget {
@@ -29,8 +30,28 @@ class _BifrostAdminHomePageState extends State<BifrostAdminHomePage> {
   Widget get _waitingForInput => Center(child: _addressBar);
 
   Widget get _ready {
-    final split = currentAddress.split(":");
-    final client = NodeGRPCService(host: split[0], port: int.parse(split[1]));
+    late String host;
+    late int port;
+    final portIndex = currentAddress.lastIndexOf(":");
+    if (portIndex > 0) {
+      host = currentAddress.substring(0, portIndex);
+      port = int.parse(currentAddress.substring(portIndex + 1));
+    } else {
+      host = currentAddress;
+      port = 9084;
+    }
+    final secure = host.startsWith("https");
+    if (host.contains("://")) {
+      host = host.substring(host.indexOf("://") + 3);
+    }
+    final client = NodeGRPCService(
+        host: host,
+        port: port,
+        options: ChannelOptions(
+            credentials: secure
+                ? const ChannelCredentials.secure()
+                : const ChannelCredentials.insecure(),
+            connectionTimeout: const Duration(days: 365)));
     return SingleChildScrollView(
       child: Column(
         children: [
